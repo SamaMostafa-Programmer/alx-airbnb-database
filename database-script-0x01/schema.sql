@@ -1,87 +1,115 @@
-normalization: # Database Normalization — AirBnB Schema
+-- Create database
+CREATE DATABASE IF NOT EXISTS airbnb;
+USE airbnb;
 
-This document explains the normalization analysis of the AirBnB database design and demonstrates that it satisfies the requirements of *Third Normal Form (3NF)*.
+-- =========================
+-- 1) User Table
+-- =========================
+CREATE TABLE User (
+    user_id        VARCHAR(36) PRIMARY KEY,
+    first_name     VARCHAR(100) NOT NULL,
+    last_name      VARCHAR(100) NOT NULL,
+    email          VARCHAR(255) NOT NULL UNIQUE,
+    password_hash  VARCHAR(255) NOT NULL,
+    phone_number   VARCHAR(20),
+    role           ENUM('guest', 'host', 'admin') NOT NULL,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
----
+-- =========================
+-- 2) Property Table
+-- =========================
+CREATE TABLE Property (
+    property_id     VARCHAR(36) PRIMARY KEY,
+    host_id         VARCHAR(36) NOT NULL,
+    name            VARCHAR(255) NOT NULL,
+    description     TEXT NOT NULL,
+    location        VARCHAR(255) NOT NULL,
+    pricepernight   DECIMAL(10,2) NOT NULL,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-## 1) First Normal Form (1NF)
+    CONSTRAINT fk_property_host
+        FOREIGN KEY (host_id) REFERENCES User(user_id)
+);
 
-A table is in 1NF if:
+CREATE INDEX idx_property_host_id ON Property(host_id);
 
-- All columns contain atomic (indivisible) values
-- There are no repeating groups or arrays
-- Each record is uniquely identifiable (primary key exists)
+-- =========================
+-- 3) Booking Table
+-- =========================
+CREATE TABLE Booking (
+    booking_id    VARCHAR(36) PRIMARY KEY,
+    property_id   VARCHAR(36) NOT NULL,
+    user_id       VARCHAR(36) NOT NULL,
+    start_date    DATE NOT NULL,
+    end_date      DATE NOT NULL,
+    total_price   DECIMAL(10,2) NOT NULL,
+    status        ENUM('pending','confirmed','canceled') NOT NULL,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-*Analysis:*  
-All entities (User, Property, Booking, Payment, Review, Message) use atomic data types (UUIDs, VARCHAR, DECIMAL, TIMESTAMP). No repeating groups exist, and every table has a primary key.  
-✅ Therefore, the schema satisfies *1NF*
+    CONSTRAINT fk_booking_property
+        FOREIGN KEY (property_id) REFERENCES Property(property_id),
 
----
+    CONSTRAINT fk_booking_user
+        FOREIGN KEY (user_id) REFERENCES User(user_id)
+);
 
-## 2) Second Normal Form (2NF)
+CREATE INDEX idx_booking_property_id ON Booking(property_id);
+CREATE INDEX idx_booking_user_id ON Booking(user_id);
 
-A table is in 2NF if:
+-- =========================
+-- 4) Payment Table
+-- =========================
+CREATE TABLE Payment (
+    payment_id     VARCHAR(36) PRIMARY KEY,
+    booking_id     VARCHAR(36) NOT NULL,
+    amount         DECIMAL(10,2) NOT NULL,
+    payment_date   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    payment_method ENUM('credit_card','paypal','stripe') NOT NULL,
 
-- It is already in 1NF
-- There are no partial dependencies (i.e., all non-key attributes depend on the full primary key)
+    CONSTRAINT fk_payment_booking
+        FOREIGN KEY (booking_id) REFERENCES Booking(booking_id)
+);
 
-*Analysis:*  
-All tables use a single-column primary key (UUID), not a composite key.  
-Therefore, no partial dependency can occur.  
-✅ Therefore, the schema satisfies *2NF*
+CREATE INDEX idx_payment_booking_id ON Payment(booking_id);
 
----
+-- =========================
+-- 5) Review Table
+-- =========================
+CREATE TABLE Review (
+    review_id     VARCHAR(36) PRIMARY KEY,
+    property_id   VARCHAR(36) NOT NULL,
+    user_id       VARCHAR(36) NOT NULL,
+    rating        INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment       TEXT NOT NULL,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-## 3) Third Normal Form (3NF)
+    CONSTRAINT fk_review_property
+        FOREIGN KEY (property_id) REFERENCES Property(property_id),
 
-A table is in 3NF if:
+    CONSTRAINT fk_review_user
+        FOREIGN KEY (user_id) REFERENCES User(user_id)
+);
 
-- It is already in 2NF
-- There are no transitive dependencies (non-key attribute depending on another non-key attribute)
+CREATE INDEX idx_review_property_id ON Review(property_id);
 
-*Analysis of Each Table:*
+-- =========================
+-- 6) Message Table
+-- =========================
+CREATE TABLE Message (
+    message_id     VARCHAR(36) PRIMARY KEY,
+    sender_id      VARCHAR(36) NOT NULL,
+    recipient_id   VARCHAR(36) NOT NULL,
+    message_body   TEXT NOT NULL,
+    sent_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-### User
+    CONSTRAINT fk_message_sender
+        FOREIGN KEY (sender_id) REFERENCES User(user_id),
 
-Non-key attributes (name, email, phone, role…) depend only on user_id.  
-No attribute depends on another non-key attribute.  
-✅ In 3NF
+    CONSTRAINT fk_message_recipient
+        FOREIGN KEY (recipient_id) REFERENCES User(user_id)
+);
 
-### Property
-
-All attributes depend on property_id.  
-host_id is a foreign key, but it does not create transitive dependency.  
-✅ In 3NF
-
-### Booking
-
-All attributes depend on booking_id.  
-Foreign keys (user_id, property_id) do not introduce transitive dependency.  
-✅ In 3NF
-
-### Payment
-
-All attributes depend on payment_id.  
-amount and payment_date do not depend on another non-key column.  
-✅ In 3NF
-
-### Review
-
-All attributes depend on review_id.  
-No transitive dependency exists.  
-✅ In 3NF
-
-### Message
-
-All attributes depend on message_id.  
-sender_id and recipient_id are foreign keys — not transitive dependencies.  
-✅ In 3NF
-
----
-
-## Conclusion
-
-No redundancy, no partial dependencies, and no transitive dependencies were found.  
-The current AirBnB database schema *fully conforms to Third Normal Form (3NF)* and does not require further normalization.
-
-✅ *Schema is normalized up to 3NF*
+CREATE INDEX idx_message_sender_id ON Message(sender_id);
+CREATE INDEX idx_message_recipient_id ON Message(recipient_id);

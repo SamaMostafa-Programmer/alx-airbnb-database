@@ -1,14 +1,15 @@
 -- INNER JOIN
-SELECT u.id AS user_id, u.name, b.id AS booking_id, b.start_date
-FROM users u
-INNER JOIN bookings b ON u.id = b.user_id;
+SELECT bookings.id AS booking_id, users.id AS user_id, users.name, bookings.start_date
+FROM bookings
+INNER JOIN users ON bookings.user_id = users.id;
 
 -- LEFT JOIN
-SELECT p.id AS property_id, p.name AS property_name, r.rating AS review_rating
-FROM properties p
-LEFT JOIN reviews r ON p.id = r.property_id;
+SELECT properties.id AS property_id, properties.name, reviews.rating
+FROM properties
+LEFT JOIN reviews ON properties.id = reviews.property_id;
 
--- FULL OUTER JOIN (PostgreSQL syntax)
-SELECT u.id AS user_id, b.id AS booking_id
-FROM users u
-FULL OUTER JOIN bookings b ON u.id = b.user_id;
+-- FULL OUTER JOIN
+SELECT users.id AS user_id, bookings.id AS booking_id
+FROM users
+FULL OUTER JOIN bookings ON users.id = bookings.user_id;
+
